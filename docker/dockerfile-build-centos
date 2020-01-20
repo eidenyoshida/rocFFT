@@ -30,6 +30,7 @@ RUN yum install -y \
     libcxx-devel \
     boost-devel\
     numactl-libs \
+    libomp-dev \
     rpm-build
 
 RUN echo '#!/bin/bash' | tee /etc/profile.d/devtoolset7.sh && echo \

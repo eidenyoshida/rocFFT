@@ -24,6 +24,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     libboost-program-options-dev \
     python \
     libnuma1 \
+    libomp-dev \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
