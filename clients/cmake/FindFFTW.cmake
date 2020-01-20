@@ -41,6 +41,27 @@ mark_as_advanced( FFTW_INCLUDE_DIRS )
 # message( STATUS "FFTW_FIND_REQUIRED_DOUBLE: ${FFTW_FIND_REQUIRED_DOUBLE}" )
 
 set( FFTW_LIBRARIES "" )
+
+if( ( FFTW_FIND_REQUIRED_FLOAT OR FFTW_FIND_REQUIRED_SINGLE ) AND FFTW_FIND_REQUIRED_OPENMP )
+  message("Finding single libraries")
+  find_library( FFTW_LIBRARIES_SINGLE_OPENMP
+      NAMES fftw3f_omp
+      HINTS
+          ${FFTW_ROOT}/lib
+          $ENV{FFTW_ROOT}/lib
+      PATHS
+          /usr/lib
+          /usr/local/lib
+      PATH_SUFFIXES
+          x86_64-linux-gnu
+      DOC "FFTW dynamic library single"
+  )
+  mark_as_advanced( FFTW_LIBRARIES_SINGLE_OPENMP )
+  list( APPEND FFTW_LIBRARIES ${FFTW_LIBRARIES_SINGLE_OPENMP} )
+  message("Libraries so far:")
+  message(${FFTW_LIBRARIES})
+endif( )
+
 if( FFTW_FIND_REQUIRED_FLOAT OR FFTW_FIND_REQUIRED_SINGLE )
   find_library( FFTW_LIBRARIES_SINGLE
       NAMES fftw3f fftw3f-3 fftw3 fftw3-3
@@ -56,6 +77,27 @@ if( FFTW_FIND_REQUIRED_FLOAT OR FFTW_FIND_REQUIRED_SINGLE )
   )
   mark_as_advanced( FFTW_LIBRARIES_SINGLE )
   list( APPEND FFTW_LIBRARIES ${FFTW_LIBRARIES_SINGLE} )
+  message("Libraries so far")
+  message(${FFTW_LIBRARIES})
+endif( )
+
+if( FFTW_FIND_REQUIRED_DOUBLE AND FFTW_FIND_REQUIRED_OPENMP)
+  find_library( FFTW_LIBRARIES_DOUBLE_OPENMP
+      NAMES fftw3_omp
+      HINTS
+          ${FFTW_ROOT}/lib
+          $ENV{FFTW_ROOT}/lib
+      PATHS
+          /usr/lib
+          /usr/local/lib
+      PATH_SUFFIXES
+          x86_64-linux-gnu
+      DOC "FFTW dynamic library double"
+  )
+  mark_as_advanced( FFTW_LIBRARIES_DOUBLE_OPENMP )
+  list( APPEND FFTW_LIBRARIES ${FFTW_LIBRARIES_DOUBLE_OPENMP} )
+  message("Libraries so far")
+  message(${FFTW_LIBRARIES})
 endif( )
 
 if( FFTW_FIND_REQUIRED_DOUBLE )
@@ -73,6 +115,8 @@ if( FFTW_FIND_REQUIRED_DOUBLE )
   )
   mark_as_advanced( FFTW_LIBRARIES_DOUBLE )
   list( APPEND FFTW_LIBRARIES ${FFTW_LIBRARIES_DOUBLE} )
+  message("Libraries so far")
+  message(${FFTW_LIBRARIES})
 endif( )
 
 include( FindPackageHandleStandardArgs )

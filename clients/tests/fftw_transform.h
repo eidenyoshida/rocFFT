@@ -27,6 +27,10 @@
 #include <fftw3.h>
 #include <vector>
 
+#ifdef USE_FFTW_OPENMP
+#include <omp.h>
+#endif
+
 enum data_pattern
 {
     impulse,
@@ -47,6 +51,44 @@ enum fftw_transform_type
     r2c,
     c2r
 };
+
+// Functions to initiate threads
+template <typename Tfloat>
+inline void fftw_initiate_threads();
+template <>
+inline void fftw_initiate_threads<float>()
+{
+#ifdef USE_FFTW_OPENMP
+    fftwf_init_threads();
+    fftwf_plan_with_nthreads(omp_get_max_threads());
+#endif
+}
+template <>
+inline void fftw_initiate_threads<double>()
+{
+#ifdef USE_FFTW_OPENMP
+    fftw_init_threads();
+    fftw_plan_with_nthreads(omp_get_max_threads());
+#endif
+}
+
+// Function to cleanup threads
+template <typename Tfloat>
+inline void fftw_clean_threads();
+template <>
+inline void fftw_clean_threads<float>()
+{
+#ifdef USE_FFTW_OPENMP
+    fftwf_cleanup_threads();
+#endif
+}
+template <>
+inline void fftw_clean_threads<double>()
+{
+#ifdef USE_FFTW_OPENMP
+    fftw_cleanup_threads();
+#endif
+}
 
 // Function to return maximum error for float and double types.
 template <typename Tfloat>

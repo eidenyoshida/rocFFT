@@ -308,6 +308,7 @@ void normal_2D_complex_to_complex(size_t                  Nx,
     std::complex<Tfloat>* cpu_out = inplace ? cpu_in : fftw_alloc_type<std::complex<Tfloat>>(osize);
 
     // Set up the CPU plan:
+    fftw_initiate_threads<Tfloat>();
     auto cpu_plan = fftw_plan_guru64_dft<Tfloat>(dims.size(),
                                                  dims.data(),
                                                  howmany_dims.size(),
@@ -541,6 +542,8 @@ void normal_2D_complex_to_complex(size_t                  Nx,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in_bufs[0]);
     hipFree(gpu_in_bufs[1]);
@@ -776,6 +779,7 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
         = inplace ? (std::complex<Tfloat>*)cpu_in : fftw_alloc_type<std::complex<Tfloat>>(osize);
 
     // Set up the CPU plan:
+    fftw_initiate_threads<Tfloat>();
     auto cpu_plan = fftw_plan_guru64_r2c<Tfloat>(dims.size(),
                                                  dims.data(),
                                                  howmany_dims.size(),
@@ -945,6 +949,8 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
@@ -1200,6 +1206,7 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
     Tfloat* cpu_out = inplace ? (Tfloat*)cpu_in : fftw_alloc_type<Tfloat>(osize);
 
     // Set up the CPU plan:
+    fftw_initiate_threads<Tfloat>();
     auto cpu_plan = fftw_plan_guru64_c2r<Tfloat>(dims.size(),
                                                  dims.data(),
                                                  howmany_dims.size(),
@@ -1375,6 +1382,8 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);

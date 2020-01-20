@@ -313,6 +313,7 @@ void normal_3D_complex_to_complex(std::vector<size_t>     length,
     std::complex<Tfloat>* cpu_out = inplace ? cpu_in : fftw_alloc_type<std::complex<Tfloat>>(osize);
 
     // Set up the CPU plan:
+    fftw_initiate_threads<Tfloat>();
     auto cpu_plan = fftw_plan_guru64_dft<Tfloat>(dims.size(),
                                                  dims.data(),
                                                  howmany_dims.size(),
@@ -571,6 +572,8 @@ void normal_3D_complex_to_complex(std::vector<size_t>     length,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in_bufs[0]);
     hipFree(gpu_in_bufs[1]);
@@ -813,6 +816,7 @@ void normal_3D_real_to_complex_interleaved(std::vector<size_t>     length,
         = inplace ? (std::complex<Tfloat>*)cpu_in : fftw_alloc_type<std::complex<Tfloat>>(osize);
 
     // Set up the CPU plan:
+    fftw_initiate_threads<Tfloat>();
     auto cpu_plan = fftw_plan_guru64_r2c<Tfloat>(dims.size(),
                                                  dims.data(),
                                                  howmany_dims.size(),
@@ -1003,6 +1007,8 @@ void normal_3D_real_to_complex_interleaved(std::vector<size_t>     length,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
@@ -1377,6 +1383,7 @@ void normal_3D_complex_interleaved_to_real(std::vector<size_t>     length,
     Tfloat* cpu_out = inplace ? (Tfloat*)cpu_in : fftw_alloc_type<Tfloat>(osize);
 
     // Set up the CPU plan:
+    fftw_initiate_threads<Tfloat>();
     auto cpu_plan = fftw_plan_guru64_c2r<Tfloat>(dims.size(),
                                                  dims.data(),
                                                  howmany_dims.size(),
@@ -1569,6 +1576,8 @@ void normal_3D_complex_interleaved_to_real(std::vector<size_t>     length,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
