@@ -57,12 +57,16 @@ find_package( GTest REQUIRED )
 set( FFTW_COMPONENTS "" )
 LIST(APPEND FFTW_COMPONENTS FLOAT DOUBLE)
 
+
+
 if ( USE_FFTW_OPENMP )
   message("Looking for OpenMP and FFTW OpenMP")
   message (STATUS "OS detected is ${OS_ID}")
   if( OS_ID_rhel OR OS_ID_centos OR OS_ID_sles)
+    message ( "Adding " ${OS_ID} " specific flags")
     set(OpenMP_CXX_FLAGS "-fopenmp=libgomp")
     set(OpenMP_CXX_LIB_NAMES "libgomp")
+    set(OpenMP_libgomp_LIBRARY "libgomp")
     if( OS_ID_rhel OR OS_ID_centos)
         # defer OpenMP include as search order must come after clang
         set( XXX_OPENMP_INCLUDE_DIR /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include )
