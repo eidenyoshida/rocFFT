@@ -28,7 +28,6 @@ RUN zypper refresh && zypper -n install\
     libboost_program_options1_66_0-devel\
     libcxxtools9 \
     libnuma1 \
-    libgomp1 \
     pkg-config 
 
 # docker pipeline runs containers with particular uid

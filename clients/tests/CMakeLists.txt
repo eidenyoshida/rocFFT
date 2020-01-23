@@ -65,31 +65,31 @@ if ( USE_FFTW_OPENMP )
   if( OS_ID_rhel OR OS_ID_centos OR OS_ID_sles)
     message ( "Adding " ${OS_ID} " specific flags")
     set(OpenMP_CXX_FLAGS "-fopenmp=libgomp")
-    set(OpenMP_CXX_LIB_NAMES "libgomp")
-    set(OpenMP_libgomp_LIBRARY "libgomp")
+    # set(OpenMP_CXX_LIB_NAMES "libgomp")
+    # set(OpenMP_libgomp_LIBRARY "libgomp")
     if( OS_ID_rhel OR OS_ID_centos)
-        # defer OpenMP include as search order must come after clang
-        set( XXX_OPENMP_INCLUDE_DIR /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include )
-        set( OPENMP_LIBRARY /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/libgomp.so )
+        set( OPENMP_INCLUDE_DIR /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include )
+        #set( OPENMP_LIBRARY /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/libgomp.so )
     else( )
     #SLES
         set( OPENMP_INCLUDE_DIR /usr/lib64/gcc/x86_64-suse-linux/7/include/ )
-        set( OPENMP_LIBRARY /usr/lib64/gcc/x86_64-suse-linux/7/libgomp.so )
+        #set( OPENMP_LIBRARY /usr/lib64/gcc/x86_64-suse-linux/7/libgomp.so )
     endif( )
+    set( OPENMP_FOUND 1)
+  else( )
+    #UBUNTU
+    find_package(OpenMP)
   endif( )
-  # set(OpenMP_CXX "${CMAKE_CXX_COMPILER}")
-  # set(OpenMP_CXX_FLAGS "-fopenmp=libomp")
-  # set(OpenMP_CXX_LIB_NAMES "libomp" "libgomp")
-  # set(OpenMP_libomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
-  # set(OpenMP_libgomp_LIBRARY ${OpenMP_CXX_LIB_NAMES})
-  find_package(OpenMP)
+  
   if(OPENMP_FOUND)
     set(HAVE_OPENMP 1)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+    message("OPENMP_INCLUDE_DIR " ${OPENMP_INCLUDE_DIR})
+    message("OPENMP_LIBRARY " ${OPENMP_LIBRARY})
     add_definitions(-DUSE_FFTW_OPENMP)
     LIST(APPEND FFTW_COMPONENTS OPENMP)
+    message("Using OpenMP, attempting to search for FFTW OpenMP")
   else( )
     message("OpenMP not found, continuing compile without OpenMP")
   endif( )
@@ -125,6 +125,7 @@ target_include_directories( rocfft-test
   PRIVATE
     $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>
     $<BUILD_INTERFACE:${GTEST_INCLUDE_DIRS}>
+    $<BUILD_INTERFACE:${OPENMP_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${FFTW_INCLUDES}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/misc/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../library/src/include>
