@@ -48,3 +48,7 @@ RUN mkdir -p ${ROCFFT_SRC_ROOT} && cd ${ROCFFT_SRC_ROOT} && \
     cmake -DBUILD_BOOST=OFF ${ROCFFT_SRC_ROOT}/deps && \
     make -j $(nproc) install && \
     rm -rf ${ROCFFT_SRC_ROOT}
+
+# Add symbolic link to libfftw3_omp files
+RUN ln -s /usr/lib64/libfftw3_omp.so.3 /usr/lib64/libfftw3_omp.so && \
+    ln -s /usr/lib64/libfftw3f_omp.so.3 /usr/lib64/libfftw3f_omp.so
