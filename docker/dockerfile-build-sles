@@ -22,6 +22,7 @@ RUN zypper refresh && zypper -n install\
     make \
     cmake \
     fftw3-devel \
+    libfftw3_omp3 \
     rpm-build \
     dpkg \
     python2-PyYAML \
