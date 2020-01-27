@@ -57,8 +57,6 @@ find_package( GTest REQUIRED )
 set( FFTW_COMPONENTS "" )
 LIST(APPEND FFTW_COMPONENTS FLOAT DOUBLE)
 
-
-
 if ( USE_FFTW_OPENMP )
   message("Looking for OpenMP and FFTW OpenMP")
   message (STATUS "OS detected is ${OS_ID}")

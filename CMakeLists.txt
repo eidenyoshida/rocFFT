@@ -148,6 +148,9 @@ option( BUILD_CPUREF "Build CPU reference debug code" OFF )
 # BUILD_SHARED_LIBS is a cmake built-in; we make it an explicit option such that it shows in cmake-gui
 option( BUILD_SHARED_LIBS "Build rocFFT as a shared library" ON )
 
+# Build tests using FFTW's OpenMP multithreaded implementation
+option( USE_FFTW_OPENMP "Build tests using FFTW's OpenMP multithreaded implementation" OFF )
+
 # force library install path to lib (CentOS 7 defaults to lib64)
 set(CMAKE_INSTALL_LIBDIR "lib" CACHE INTERNAL "Installation directory for libraries" FORCE)
 
