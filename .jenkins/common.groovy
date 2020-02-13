@@ -1,23 +1,15 @@
 // This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
 
-<<<<<<< HEAD:.jenkins/Common.groovy
-def runCompileCommand(platform, project, boolean debug=false, useOpenMP=false)
-=======
-def runCompileCommand(platform, project, jobName, boolean debug=false)
->>>>>>> rocmaster/develop:.jenkins/common.groovy
+def runCompileCommand(platform, project, jobName, boolean debug=false, useOpenMP=false)
 {
     project.paths.construct_build_prefix()
 
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String clientArgs = '-DBUILD_CLIENTS_SAMPLES=ON -DBUILD_CLIENTS_TESTS=ON -DBUILD_CLIENTS_BENCHMARKS=ON -DBUILD_CLIENTS_SELFTEST=ON -DBUILD_CLIENTS_RIDER=ON'
     String buildTypeArg = debug ? '-DCMAKE_BUILD_TYPE=Debug' : '-DCMAKE_BUILD_TYPE=Release'
-<<<<<<< HEAD:.jenkins/Common.groovy
-    String hipClangArgs = platform.jenkinsLabel.contains('hip-clang') ? '-DUSE_HIP_CLANG=ON -DHIP_COMPILER=clang' : ''
-    String openMPArgs = useOpenMP ? '-DUSE_FFTW_OPENMP=ON' : ''
-=======
     String hipClangArgs = jobName.contains('hipclang') ? '-DUSE_HIP_CLANG=ON -DHIP_COMPILER=clang' : ''
->>>>>>> rocmaster/develop:.jenkins/common.groovy
+    String openMPArgs = useOpenMP ? '-DUSE_FFTW_OPENMP=ON' : ''
     String cmake = platform.jenkinsLabel.contains('centos') ? 'cmake3' : 'cmake'
     String sudo = platform.jenkinsLabel.contains('sles') ? 'sudo' : ''
 
