@@ -547,8 +547,6 @@ void normal_1D_complex(size_t                  N,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
-    // Cleanup CPU threads:
-    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in_bufs[0]);
     hipFree(gpu_in_bufs[1]);
@@ -575,6 +573,8 @@ void normal_1D_complex(size_t                  N,
     rocfft_plan_description_destroy(gpu_description);
     rocfft_plan_destroy(gpu_plan);
     fftw_destroy_plan_type(cpu_plan);
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
 }
 
 // Complex to Complex
@@ -987,8 +987,6 @@ void normal_1D_real_to_complex(size_t                  N,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
-    // Cleanup CPU threads:
-    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
@@ -1008,6 +1006,8 @@ void normal_1D_real_to_complex(size_t                  N,
     rocfft_plan_description_destroy(gpu_description);
     rocfft_plan_destroy(gpu_plan);
     fftw_destroy_plan_type(cpu_plan);
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
 }
 
 TEST_P(accuracy_test_real, normal_1D_real_to_complex_single_precision)
@@ -1417,8 +1417,6 @@ void normal_1D_complex_to_real(size_t                  N,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
-    // Cleanup CPU threads:
-    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in_bufs[0]);
     hipFree(gpu_in_bufs[1]);
@@ -1443,6 +1441,8 @@ void normal_1D_complex_to_real(size_t                  N,
     rocfft_plan_description_destroy(gpu_description);
     rocfft_plan_destroy(gpu_plan);
     fftw_destroy_plan_type(cpu_plan);
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
 }
 
 TEST_P(accuracy_test_real, normal_1D_complex_to_real_single_precision)

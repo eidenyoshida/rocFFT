@@ -564,8 +564,6 @@ void normal_2D_complex_to_complex(size_t                  Nx,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
-    // Cleanup CPU threads:
-    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in_bufs[0]);
     hipFree(gpu_in_bufs[1]);
@@ -592,6 +590,8 @@ void normal_2D_complex_to_complex(size_t                  Nx,
     rocfft_plan_description_destroy(gpu_description);
     rocfft_plan_destroy(gpu_plan);
     fftw_destroy_plan_type(cpu_plan);
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
 }
 
 // Implemetation of complex-to-complex tests for float and double:
@@ -1039,8 +1039,6 @@ void normal_2D_real_to_complex(size_t                  Nx,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
-    // Cleanup CPU threads:
-    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in);
     fftw_free(cpu_in);
@@ -1060,6 +1058,8 @@ void normal_2D_real_to_complex(size_t                  Nx,
     rocfft_plan_description_destroy(gpu_description);
     rocfft_plan_destroy(gpu_plan);
     fftw_destroy_plan_type(cpu_plan);
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
 }
 
 // Impose Hermitian symmetry on a 3D complex array of size Nx * (Ny / 2 + 1) with batches.
@@ -1543,8 +1543,6 @@ void normal_2D_complex_to_real(size_t                  Nx,
     EXPECT_TRUE(Linferror < type_epsilon<Tfloat>()) << "Tolerance failure: Linferror: " << Linferror
                                                     << ", tolerance: " << type_epsilon<Tfloat>();
 
-    // Cleanup CPU threads:
-    fftw_clean_threads<Tfloat>();
     // Free GPU memory:
     hipFree(gpu_in_bufs[0]);
     hipFree(gpu_in_bufs[1]);
@@ -1569,6 +1567,8 @@ void normal_2D_complex_to_real(size_t                  Nx,
     rocfft_plan_description_destroy(gpu_description);
     rocfft_plan_destroy(gpu_plan);
     fftw_destroy_plan_type(cpu_plan);
+    // Cleanup CPU threads:
+    fftw_clean_threads<Tfloat>();
 }
 
 // Implemetation of real-to-complex tests for float and double:
