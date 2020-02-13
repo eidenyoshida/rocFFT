@@ -61,6 +61,9 @@ static data_pattern pattern_range[] = {sawtooth};
 static rocfft_array_type c2c_array_range[]
     = {rocfft_array_type_complex_interleaved, rocfft_array_type_complex_planar};
 
+static rocfft_array_type r2c_array_range[]
+    = {rocfft_array_type_hermitian_interleaved, rocfft_array_type_hermitian_planar};
+
 // Test suite classes:
 
 class accuracy_test_complex_2D : public ::testing::TestWithParam<std::tuple<size_t,
@@ -84,8 +87,13 @@ protected:
     }
 };
 class accuracy_test_real_2D
-    : public ::testing::TestWithParam<
-          std::tuple<size_t, size_t, size_t, rocfft_result_placement, size_t, data_pattern>>
+    : public ::testing::TestWithParam<std::tuple<size_t, // Nx
+                                                 size_t, // Ny
+                                                 size_t, // batch
+                                                 rocfft_result_placement, // placeness
+                                                 size_t, // stride
+                                                 rocfft_array_type, // output for r2c, input for c2r
+                                                 data_pattern>>
 {
 protected:
     void SetUp() override
@@ -303,8 +311,12 @@ void normal_2D_complex_to_complex(size_t                  Nx,
     // Set up cpu buffers:
     std::complex<Tfloat>* cpu_in = fftw_alloc_type<std::complex<Tfloat>>(isize);
     Tfloat*               cpu_tmp_planar_bufs[2];
-    cpu_tmp_planar_bufs[0]        = new Tfloat[isize];
-    cpu_tmp_planar_bufs[1]        = new Tfloat[isize];
+    if(in_array_type == rocfft_array_type_complex_planar
+       || out_array_type == rocfft_array_type_complex_planar)
+    {
+        cpu_tmp_planar_bufs[0] = new Tfloat[isize];
+        cpu_tmp_planar_bufs[1] = new Tfloat[isize];
+    }
     std::complex<Tfloat>* cpu_out = inplace ? cpu_in : fftw_alloc_type<std::complex<Tfloat>>(osize);
 
     // Set up the CPU plan:
@@ -332,12 +344,22 @@ void normal_2D_complex_to_complex(size_t                  Nx,
                 std::complex<Tfloat> val((Tfloat)rand() / (Tfloat)RAND_MAX,
                                          (Tfloat)rand() / (Tfloat)RAND_MAX);
                 cpu_in[howmany_dims[0].is * ibatch + dims[0].is * i + dims[1].is * j] = val;
-                cpu_tmp_planar_bufs[0]
-                                   [howmany_dims[0].is * ibatch + dims[0].is * i + dims[1].is * j]
-                    = val.real();
-                cpu_tmp_planar_bufs[1]
-                                   [howmany_dims[0].is * ibatch + dims[0].is * i + dims[1].is * j]
-                    = val.imag();
+            }
+        }
+    }
+
+    if(in_array_type == rocfft_array_type_complex_planar)
+    {
+        for(size_t ibatch = 0; ibatch < batch; ++ibatch)
+        {
+            for(size_t i = 0; i < Nx; i++)
+            {
+                for(size_t j = 0; j < Ny; j++)
+                {
+                    size_t idx = howmany_dims[0].is * ibatch + dims[0].is * i + dims[1].is * j;
+                    cpu_tmp_planar_bufs[0][idx] = cpu_in[idx].real();
+                    cpu_tmp_planar_bufs[1][idx] = cpu_in[idx].imag();
+                }
             }
         }
     }
@@ -548,8 +570,12 @@ void normal_2D_complex_to_complex(size_t                  Nx,
     hipFree(gpu_in_bufs[0]);
     hipFree(gpu_in_bufs[1]);
     fftw_free(cpu_in);
-    delete[] cpu_tmp_planar_bufs[0];
-    delete[] cpu_tmp_planar_bufs[1];
+    if(in_array_type == rocfft_array_type_complex_planar
+       || out_array_type == rocfft_array_type_complex_planar)
+    {
+        delete[] cpu_tmp_planar_bufs[0];
+        delete[] cpu_tmp_planar_bufs[1];
+    }
     if(!inplace)
     {
         hipFree(gpu_out_bufs[0]);
@@ -633,19 +659,42 @@ TEST_P(accuracy_test_complex_2D, normal_2D_complex_to_complex_double_precision)
 
 // Templated test function for real to complex:
 template <typename Tfloat>
-void normal_2D_real_to_complex_interleaved(size_t                  Nx,
-                                           size_t                  Ny,
-                                           size_t                  batch,
-                                           rocfft_result_placement placeness,
-                                           rocfft_transform_type   transform_type,
-                                           size_t                  stride,
-                                           data_pattern            pattern)
+void normal_2D_real_to_complex(size_t                  Nx,
+                               size_t                  Ny,
+                               size_t                  batch,
+                               rocfft_result_placement placeness,
+                               rocfft_transform_type   transform_type,
+                               size_t                  stride,
+                               rocfft_array_type       out_array_type,
+                               data_pattern            pattern)
 {
     using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
+    const bool inplace      = placeness == rocfft_placement_inplace;
+
+    // filter out the invalid case and skip it
+    bool valid = false;
+    if(inplace)
+    {
+        if(out_array_type == rocfft_array_type_hermitian_interleaved)
+        {
+            valid = true;
+        }
+    }
+    else
+    {
+        if(out_array_type == rocfft_array_type_hermitian_interleaved
+           || out_array_type == rocfft_array_type_hermitian_planar)
+        {
+            valid = true;
+        }
+    }
+
+    if(!valid)
+    {
+        return;
+    }
 
     std::vector<size_t> length = {Ny, Nx};
-
-    const bool inplace = placeness == rocfft_placement_inplace;
 
     // TODO: add logic to deal with discontiguous data in Nystride
     const size_t Nycomplex = Ny / 2 + 1;
@@ -704,7 +753,7 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
 
     fft_status = rocfft_plan_description_set_data_layout(gpu_description,
                                                          rocfft_array_type_real,
-                                                         rocfft_array_type_hermitian_interleaved,
+                                                         out_array_type,
                                                          NULL,
                                                          NULL,
                                                          istride.size(),
@@ -755,11 +804,28 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
     Tfloat* gpu_in = NULL;
     hip_status     = hipMalloc(&gpu_in, isize * sizeof(Tfloat));
     ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-    std::complex<Tfloat>* gpu_out = inplace ? (std::complex<Tfloat>*)gpu_in : NULL;
-    if(!inplace)
+    void* gpu_out_bufs[2] = {NULL, NULL};
+
+    if(inplace)
     {
-        hip_status = hipMalloc(&gpu_out, osize * sizeof(std::complex<Tfloat>));
-        ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
+        gpu_out_bufs[0] = gpu_in;
+    }
+    else
+    {
+        if(out_array_type == rocfft_array_type_hermitian_interleaved)
+        {
+            hip_status = hipMalloc(&gpu_out_bufs[0], osize * sizeof(std::complex<Tfloat>));
+            ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
+        }
+        else
+        {
+            hip_status = hipMalloc(&gpu_out_bufs[0], osize * sizeof(Tfloat));
+            ASSERT_TRUE(hip_status == hipSuccess)
+                << "hipMalloc failure, size " << osize * sizeof(std::complex<Tfloat>);
+            hip_status = hipMalloc(&gpu_out_bufs[1], osize * sizeof(Tfloat));
+            ASSERT_TRUE(hip_status == hipSuccess)
+                << "hipMalloc failure, size " << osize * sizeof(std::complex<Tfloat>);
+        }
     }
 
     void* wbuffer = NULL;
@@ -771,8 +837,7 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
         ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT set work buffer failure";
     }
 
-    // Set up buffers:
-    // Local data buffer:
+    // Set up cpu buffers:
     Tfloat* cpu_in = fftw_alloc_type<Tfloat>(isize);
     // Output buffer
     std::complex<Tfloat>* cpu_out
@@ -841,7 +906,7 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
     // Execute the GPU transform:
     fft_status = rocfft_execute(gpu_plan, // plan
                                 (void**)&gpu_in, // in_buffer
-                                (void**)&gpu_out, // out_buffer
+                                (void**)&gpu_out_bufs, // out_buffers
                                 planinfo); // execution info
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT plan execution failure";
 
@@ -880,9 +945,34 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
 
     // Copy the data back and compare:
     fftw_vector<std::complex<Tfloat>> gpu_out_comp(osize);
-    hip_status = hipMemcpy(
-        gpu_out_comp.data(), gpu_out, osize * sizeof(std::complex<Tfloat>), hipMemcpyDeviceToHost);
-    ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
+    if(out_array_type == rocfft_array_type_hermitian_interleaved)
+    {
+        hip_status = hipMemcpy(gpu_out_comp.data(),
+                               gpu_out_bufs[0],
+                               osize * sizeof(std::complex<Tfloat>),
+                               hipMemcpyDeviceToHost);
+        ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
+    }
+    else
+    {
+        Tfloat* cpu_tmp_planar_bufs[2];
+        cpu_tmp_planar_bufs[0] = new Tfloat[osize];
+        cpu_tmp_planar_bufs[1] = new Tfloat[osize];
+
+        hip_status = hipMemcpy(
+            cpu_tmp_planar_bufs[0], gpu_out_bufs[0], osize * sizeof(Tfloat), hipMemcpyDeviceToHost);
+        ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
+        hip_status = hipMemcpy(
+            cpu_tmp_planar_bufs[1], gpu_out_bufs[1], osize * sizeof(Tfloat), hipMemcpyDeviceToHost);
+        ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
+        for(size_t i = 0; i < osize; i++)
+        {
+            gpu_out_comp[i]
+                = std::complex<Tfloat>(cpu_tmp_planar_bufs[0][i], cpu_tmp_planar_bufs[1][i]);
+        }
+        delete[] cpu_tmp_planar_bufs[0];
+        delete[] cpu_tmp_planar_bufs[1];
+    }
 
     if(verbose > 1)
     {
@@ -956,7 +1046,8 @@ void normal_2D_real_to_complex_interleaved(size_t                  Nx,
     fftw_free(cpu_in);
     if(!inplace)
     {
-        hipFree(gpu_out);
+        hipFree(gpu_out_bufs[0]);
+        hipFree(gpu_out_bufs[1]);
         fftw_free(cpu_out);
     }
     if(wbuffer != NULL)
@@ -1003,7 +1094,7 @@ void imposeHermitianSymmetry(std::complex<Tfloat>*              data,
         }
 
         // x-axis:
-        for(int i = 1; i < Nx / 2 + 1; ++i)
+        for(int i = 1; i < (Nx + 1) / 2; ++i)
         {
             data[howmany_dims.is * ibatch + dims[0].is * (Nx - i)]
                 = std::conj(data[howmany_dims.is * ibatch + dims[0].is * i]);
@@ -1012,7 +1103,7 @@ void imposeHermitianSymmetry(std::complex<Tfloat>*              data,
         // y-Nyquist:
         if(Ny % 2 == 0)
         {
-            for(int i = 1; i < Nx / 2 + 1; ++i)
+            for(int i = 1; i < (Nx + 1) / 2; ++i)
             {
                 data[howmany_dims.is * ibatch + dims[0].is * (Nx - i) + dims[1].is * (Ny / 2)]
                     = std::conj(
@@ -1062,19 +1153,42 @@ bool isHermitianSymmetric(std::complex<Tfloat>*              data,
 
 // Templated test function for real to complex:
 template <typename Tfloat>
-void normal_2D_complex_interleaved_to_real(size_t                  Nx,
-                                           size_t                  Ny,
-                                           size_t                  batch,
-                                           rocfft_result_placement placeness,
-                                           rocfft_transform_type   transform_type,
-                                           size_t                  stride,
-                                           data_pattern            pattern)
+void normal_2D_complex_to_real(size_t                  Nx,
+                               size_t                  Ny,
+                               size_t                  batch,
+                               rocfft_result_placement placeness,
+                               rocfft_transform_type   transform_type,
+                               size_t                  stride,
+                               rocfft_array_type       in_array_type,
+                               data_pattern            pattern)
 {
     using fftw_complex_type = typename fftw_trait<Tfloat>::fftw_complex_type;
+    const bool inplace      = placeness == rocfft_placement_inplace;
 
-    std::vector<size_t> length  = {Ny, Nx};
-    const bool          inplace = placeness == rocfft_placement_inplace;
+    // filter out the invalid case and skip it
+    bool valid = false;
+    if(inplace)
+    {
+        if(in_array_type == rocfft_array_type_hermitian_interleaved)
+        {
+            valid = true;
+        }
+    }
+    else
+    {
+        if(in_array_type == rocfft_array_type_hermitian_interleaved
+           || in_array_type == rocfft_array_type_hermitian_planar)
+        {
+            valid = true;
+        }
+    }
 
+    if(!valid)
+    {
+        return;
+    }
+
+    std::vector<size_t> length = {Ny, Nx};
     // TODO: add logic to deal with discontiguous data in Nystride
     const size_t Nycomplex = Ny / 2 + 1;
     const size_t Nystride  = inplace ? 2 * Nycomplex : Ny;
@@ -1130,7 +1244,7 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
         = {static_cast<size_t>(dims[1].os), static_cast<size_t>(dims[0].os)};
 
     fft_status = rocfft_plan_description_set_data_layout(gpu_description,
-                                                         rocfft_array_type_hermitian_interleaved,
+                                                         in_array_type,
                                                          rocfft_array_type_real,
                                                          NULL,
                                                          NULL,
@@ -1180,10 +1294,24 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
 
     hipError_t hip_status = hipSuccess;
 
-    std::complex<Tfloat>* gpu_in = NULL;
-    hip_status                   = hipMalloc(&gpu_in, isize * sizeof(std::complex<Tfloat>));
-    ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
-    Tfloat* gpu_out = inplace ? (Tfloat*)gpu_in : NULL;
+    void* gpu_in_bufs[2] = {NULL, NULL};
+    if(in_array_type == rocfft_array_type_hermitian_interleaved)
+    {
+        hip_status = hipMalloc(&gpu_in_bufs[0], isize * sizeof(std::complex<Tfloat>));
+        ASSERT_TRUE(hip_status == hipSuccess)
+            << "hipMalloc failure, size " << isize * sizeof(std::complex<Tfloat>);
+    }
+    else
+    {
+        hip_status = hipMalloc(&gpu_in_bufs[0], isize * sizeof(Tfloat));
+        ASSERT_TRUE(hip_status == hipSuccess)
+            << "hipMalloc failure, size " << isize * sizeof(std::complex<Tfloat>);
+        hip_status = hipMalloc(&gpu_in_bufs[1], isize * sizeof(Tfloat));
+        ASSERT_TRUE(hip_status == hipSuccess)
+            << "hipMalloc failure, size " << isize * sizeof(std::complex<Tfloat>);
+    }
+
+    Tfloat* gpu_out = inplace ? (Tfloat*)gpu_in_bufs[0] : NULL;
     if(!inplace)
     {
         hip_status = hipMalloc(&gpu_out, osize * sizeof(Tfloat));
@@ -1199,9 +1327,14 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
         ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT set work buffer failure";
     }
 
-    // Set up buffers:
-    // Local data buffer:
+    // Set up cpu buffers:
     std::complex<Tfloat>* cpu_in = fftw_alloc_type<std::complex<Tfloat>>(isize);
+    Tfloat*               cpu_tmp_planar_bufs[2];
+    if(in_array_type == rocfft_array_type_hermitian_planar)
+    {
+        cpu_tmp_planar_bufs[0] = new Tfloat[isize];
+        cpu_tmp_planar_bufs[1] = new Tfloat[isize];
+    }
     // Output buffer
     Tfloat* cpu_out = inplace ? (Tfloat*)cpu_in : fftw_alloc_type<Tfloat>(osize);
 
@@ -1235,6 +1368,22 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
 
     imposeHermitianSymmetry(cpu_in, dims, howmany_dims[0]);
 
+    if(in_array_type == rocfft_array_type_hermitian_planar)
+    {
+        for(size_t ibatch = 0; ibatch < batch; ++ibatch)
+        {
+            for(size_t i = 0; i < dims[0].n; i++)
+            {
+                for(size_t j = 0; j < dims[1].n / 2 + 1; j++)
+                {
+                    size_t idx = howmany_dims[0].is * ibatch + dims[0].is * i + dims[1].is * j;
+                    cpu_tmp_planar_bufs[0][idx] = cpu_in[idx].real();
+                    cpu_tmp_planar_bufs[1][idx] = cpu_in[idx].imag();
+                }
+            }
+        }
+    }
+
     if(verbose > 1)
     {
         std::cout << "\ninput:\n";
@@ -1267,13 +1416,25 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
 
     ASSERT_TRUE(isHermitianSymmetric(cpu_in, dims, howmany_dims[0]));
 
-    hip_status
-        = hipMemcpy(gpu_in, cpu_in, isize * sizeof(std::complex<Tfloat>), hipMemcpyHostToDevice);
-    ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
+    if(in_array_type == rocfft_array_type_hermitian_interleaved)
+    {
+        hip_status = hipMemcpy(
+            gpu_in_bufs[0], cpu_in, isize * sizeof(std::complex<Tfloat>), hipMemcpyHostToDevice);
+        ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
+    }
+    else
+    {
+        hip_status = hipMemcpy(
+            gpu_in_bufs[0], cpu_tmp_planar_bufs[0], isize * sizeof(Tfloat), hipMemcpyHostToDevice);
+        ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
+        hip_status = hipMemcpy(
+            gpu_in_bufs[1], cpu_tmp_planar_bufs[1], isize * sizeof(Tfloat), hipMemcpyHostToDevice);
+        ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
+    }
 
     // Execute the GPU transform:
     fft_status = rocfft_execute(gpu_plan, // plan
-                                (void**)&gpu_in, // in_buffer
+                                (void**)&gpu_in_bufs, // in_buffers
                                 (void**)&gpu_out, // out_buffer
                                 planinfo); // execution info
     ASSERT_TRUE(fft_status == rocfft_status_success) << "rocFFT plan execution failure";
@@ -1315,7 +1476,7 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
     std::vector<Tfloat> gpu_out_comp(osize);
     hip_status
         = hipMemcpy(gpu_out_comp.data(), gpu_out, osize * sizeof(Tfloat), hipMemcpyDeviceToHost);
-    ASSERT_TRUE(hip_status == hipSuccess) << "hipMalloc failure";
+    ASSERT_TRUE(hip_status == hipSuccess) << "hipMemcpy failure";
 
     if(verbose > 1)
     {
@@ -1385,8 +1546,14 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
     // Cleanup CPU threads:
     fftw_clean_threads<Tfloat>();
     // Free GPU memory:
-    hipFree(gpu_in);
+    hipFree(gpu_in_bufs[0]);
+    hipFree(gpu_in_bufs[1]);
     fftw_free(cpu_in);
+    if(in_array_type == rocfft_array_type_hermitian_planar)
+    {
+        delete[] cpu_tmp_planar_bufs[0];
+        delete[] cpu_tmp_planar_bufs[1];
+    }
     if(!inplace)
     {
         hipFree(gpu_out);
@@ -1406,20 +1573,21 @@ void normal_2D_complex_interleaved_to_real(size_t                  Nx,
 
 // Implemetation of real-to-complex tests for float and double:
 
-TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_single_precision)
+TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_single_precision)
 {
     size_t                  Nx             = std::get<0>(GetParam());
     size_t                  Ny             = std::get<1>(GetParam());
     size_t                  batch          = std::get<2>(GetParam());
     rocfft_result_placement placeness      = std::get<3>(GetParam());
     size_t                  stride         = std::get<4>(GetParam());
-    data_pattern            pattern        = std::get<5>(GetParam());
+    rocfft_array_type       out_array_type = std::get<5>(GetParam());
+    data_pattern            pattern        = std::get<6>(GetParam());
     rocfft_transform_type   transform_type = rocfft_transform_type_real_forward;
 
     try
     {
-        normal_2D_real_to_complex_interleaved<float>(
-            Nx, Ny, batch, placeness, transform_type, stride, pattern);
+        normal_2D_real_to_complex<float>(
+            Nx, Ny, batch, placeness, transform_type, stride, out_array_type, pattern);
     }
     catch(const std::exception& err)
     {
@@ -1427,20 +1595,21 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_single_preci
     }
 }
 
-TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_double_precision)
+TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_double_precision)
 {
     size_t                  Nx             = std::get<0>(GetParam());
     size_t                  Ny             = std::get<1>(GetParam());
     size_t                  batch          = std::get<2>(GetParam());
     rocfft_result_placement placeness      = std::get<3>(GetParam());
     size_t                  stride         = std::get<4>(GetParam());
-    data_pattern            pattern        = std::get<5>(GetParam());
+    rocfft_array_type       out_array_type = std::get<5>(GetParam());
+    data_pattern            pattern        = std::get<6>(GetParam());
     rocfft_transform_type   transform_type = rocfft_transform_type_real_forward;
 
     try
     {
-        normal_2D_real_to_complex_interleaved<double>(
-            Nx, Ny, batch, placeness, transform_type, stride, pattern);
+        normal_2D_real_to_complex<double>(
+            Nx, Ny, batch, placeness, transform_type, stride, out_array_type, pattern);
     }
     catch(const std::exception& err)
     {
@@ -1450,21 +1619,22 @@ TEST_P(accuracy_test_real_2D, normal_2D_real_to_complex_interleaved_double_preci
 
 // Implemetation of complex-to-real tests for float and double:
 
-TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_single_precision)
+TEST_P(accuracy_test_real_2D, normal_2D_complex_to_real_single_precision)
 {
-    size_t                  Nx        = std::get<0>(GetParam());
-    size_t                  Ny        = std::get<1>(GetParam());
-    size_t                  batch     = std::get<2>(GetParam());
-    rocfft_result_placement placeness = std::get<3>(GetParam());
-    size_t                  stride    = std::get<4>(GetParam());
-    data_pattern            pattern   = std::get<5>(GetParam());
+    size_t                  Nx            = std::get<0>(GetParam());
+    size_t                  Ny            = std::get<1>(GetParam());
+    size_t                  batch         = std::get<2>(GetParam());
+    rocfft_result_placement placeness     = std::get<3>(GetParam());
+    size_t                  stride        = std::get<4>(GetParam());
+    rocfft_array_type       in_array_type = std::get<5>(GetParam());
+    data_pattern            pattern       = std::get<6>(GetParam());
     rocfft_transform_type   transform_type
         = rocfft_transform_type_real_inverse; // must be real inverse
 
     try
     {
-        normal_2D_complex_interleaved_to_real<float>(
-            Nx, Ny, batch, placeness, transform_type, stride, pattern);
+        normal_2D_complex_to_real<float>(
+            Nx, Ny, batch, placeness, transform_type, stride, in_array_type, pattern);
     }
     catch(const std::exception& err)
     {
@@ -1472,21 +1642,22 @@ TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_single_preci
     }
 }
 
-TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_double_precision)
+TEST_P(accuracy_test_real_2D, normal_2D_complex_to_real_double_precision)
 {
-    size_t                  Nx        = std::get<0>(GetParam());
-    size_t                  Ny        = std::get<1>(GetParam());
-    size_t                  batch     = std::get<2>(GetParam());
-    rocfft_result_placement placeness = std::get<3>(GetParam());
-    size_t                  stride    = std::get<4>(GetParam());
-    data_pattern            pattern   = std::get<5>(GetParam());
+    size_t                  Nx            = std::get<0>(GetParam());
+    size_t                  Ny            = std::get<1>(GetParam());
+    size_t                  batch         = std::get<2>(GetParam());
+    rocfft_result_placement placeness     = std::get<3>(GetParam());
+    size_t                  stride        = std::get<4>(GetParam());
+    rocfft_array_type       in_array_type = std::get<5>(GetParam());
+    data_pattern            pattern       = std::get<6>(GetParam());
     rocfft_transform_type   transform_type
         = rocfft_transform_type_real_inverse; // must be real inverse
 
     try
     {
-        normal_2D_complex_interleaved_to_real<double>(
-            Nx, Ny, batch, placeness, transform_type, stride, pattern);
+        normal_2D_complex_to_real<double>(
+            Nx, Ny, batch, placeness, transform_type, stride, in_array_type, pattern);
     }
     catch(const std::exception& err)
     {
@@ -1494,7 +1665,7 @@ TEST_P(accuracy_test_real_2D, normal_2D_complex_interleaved_to_real_double_preci
     }
 }
 
-// Complex-to-complex:
+// COMPLEX TO COMPLEX
 INSTANTIATE_TEST_CASE_P(rocfft_pow2_2D,
                         accuracy_test_complex_2D,
                         ::testing::Combine(ValuesIn(pow2_range),
@@ -1543,7 +1714,7 @@ INSTANTIATE_TEST_CASE_P(rocfft_prime_2D,
                                            ValuesIn(c2c_array_range),
                                            ValuesIn(c2c_array_range)));
 
-// Complex to real and real-to-complex:
+// REAL <-> COMPLEX
 INSTANTIATE_TEST_CASE_P(rocfft_pow2_2D,
                         accuracy_test_real_2D,
                         ::testing::Combine(ValuesIn(pow2_range),
@@ -1551,6 +1722,7 @@ INSTANTIATE_TEST_CASE_P(rocfft_pow2_2D,
                                            ValuesIn(batch_range),
                                            ValuesIn(placeness_range),
                                            ValuesIn(stride_range),
+                                           ValuesIn(r2c_array_range),
                                            ValuesIn(pattern_range)));
 
 INSTANTIATE_TEST_CASE_P(rocfft_pow3_2D,
@@ -1560,6 +1732,7 @@ INSTANTIATE_TEST_CASE_P(rocfft_pow3_2D,
                                            ValuesIn(batch_range),
                                            ValuesIn(placeness_range),
                                            ValuesIn(stride_range),
+                                           ValuesIn(r2c_array_range),
                                            ValuesIn(pattern_range)));
 
 INSTANTIATE_TEST_CASE_P(rocfft_pow5_2D,
@@ -1569,6 +1742,7 @@ INSTANTIATE_TEST_CASE_P(rocfft_pow5_2D,
                                            ValuesIn(batch_range),
                                            ValuesIn(placeness_range),
                                            ValuesIn(stride_range),
+                                           ValuesIn(r2c_array_range),
                                            ValuesIn(pattern_range)));
 
 INSTANTIATE_TEST_CASE_P(rocfft_prime_2D,
@@ -1578,4 +1752,5 @@ INSTANTIATE_TEST_CASE_P(rocfft_prime_2D,
                                            ValuesIn(batch_range),
                                            ValuesIn(placeness_range),
                                            ValuesIn(stride_range),
+                                           ValuesIn(r2c_array_range),
                                            ValuesIn(pattern_range)));
