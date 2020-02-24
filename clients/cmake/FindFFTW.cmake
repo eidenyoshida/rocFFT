@@ -42,7 +42,7 @@ mark_as_advanced( FFTW_INCLUDE_DIRS )
 
 set( FFTW_LIBRARIES "" )
 
-if( ( FFTW_FIND_REQUIRED_FLOAT OR FFTW_FIND_REQUIRED_SINGLE ) AND FFTW_FIND_REQUIRED_OPENMP )
+if( FFTW_FIND_REQUIRED_FLOAT_OPENMP )
   find_library( FFTW_LIBRARIES_SINGLE_OPENMP
       NAMES fftw3f_omp
       HINTS
@@ -76,7 +76,7 @@ if( FFTW_FIND_REQUIRED_FLOAT OR FFTW_FIND_REQUIRED_SINGLE )
   list( APPEND FFTW_LIBRARIES ${FFTW_LIBRARIES_SINGLE} )
 endif( )
 
-if( FFTW_FIND_REQUIRED_DOUBLE AND FFTW_FIND_REQUIRED_OPENMP)
+if( FFTW_FIND_REQUIRED_DOUBLE_OPENMP)
   find_library( FFTW_LIBRARIES_DOUBLE_OPENMP
       NAMES fftw3_omp
       HINTS
@@ -118,7 +118,8 @@ if( NOT FFTW_FOUND )
     message( STATUS "FindFFTW could not find all of the following fftw libraries" )
     message( STATUS "${FFTW_FIND_COMPONENTS}" )
 else( )
-    message(STATUS "FindFFTW configured variables:" )
-    message(STATUS "FFTW_INCLUDE_DIRS: ${FFTW_INCLUDE_DIRS}" )
-    message(STATUS "FFTW_LIBRARIES: ${FFTW_LIBRARIES}" )
+    message( STATUS "FindFFTW configured variables:" )
+    message( STATUS "FFTW_INCLUDE_DIRS: ${FFTW_INCLUDE_DIRS}" )
+    message( STATUS "${FFTW_FIND_COMPONENTS}" )
+    message( STATUS "FFTW_LIBRARIES FOUND: ${FFTW_LIBRARIES}" )
 endif()
