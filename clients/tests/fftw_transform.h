@@ -31,28 +31,21 @@
 #include <omp.h>
 #endif
 
-enum data_pattern
+// Function to return maximum error for float and double types.
+template <typename Tfloat>
+inline double type_epsilon();
+template <>
+inline double type_epsilon<float>()
 {
-    impulse,
-    sawtooth,
-    value,
-    erratic
-};
-
-enum fftw_direction
+    return 1e-6;
+}
+template <>
+inline double type_epsilon<double>()
 {
-    forward  = -1,
-    backward = +1
-};
+    return 1e-7;
+}
 
-enum fftw_transform_type
-{
-    c2c,
-    r2c,
-    c2r
-};
-
-// Functions to initiate threads
+// Function to initiate threads for FFTW w/ OpenMP
 template <typename Tfloat>
 inline void fftw_initiate_threads();
 template <>
@@ -72,7 +65,7 @@ inline void fftw_initiate_threads<double>()
 #endif
 }
 
-// Function to cleanup threads
+// Function to cleanup threads for FFTW w/ OpenMP
 template <typename Tfloat>
 inline void fftw_clean_threads();
 template <>
@@ -88,20 +81,6 @@ inline void fftw_clean_threads<double>()
 #ifdef USE_FFTW_OPENMP
     fftw_cleanup_threads();
 #endif
-}
-
-// Function to return maximum error for float and double types.
-template <typename Tfloat>
-inline double type_epsilon();
-template <>
-inline double type_epsilon<float>()
-{
-    return 1e-6;
-}
-template <>
-inline double type_epsilon<double>()
-{
-    return 1e-7;
 }
 
 // C++ traits to translate float->fftwf_complex and
@@ -342,5 +321,25 @@ inline typename fftw_trait<double>::fftw_plan_type
 {
     return fftw_plan_guru64_dft_c2r(rank, dims, howmany_rank, howmany_dims, in, out, flags);
 }
+
+// Allocator / deallocator for FFTW arrays.
+template <typename Tdata>
+class fftwAllocator : public std::allocator<Tdata>
+{
+public:
+    template <typename U>
+    struct rebind
+    {
+        typedef fftwAllocator other;
+    };
+    Tdata* allocate(size_t n)
+    {
+        return (Tdata*)fftw_malloc(sizeof(Tdata) * n);
+    }
+    void deallocate(Tdata* data, std::size_t size)
+    {
+        fftw_free(data);
+    }
+};
 
 #endif

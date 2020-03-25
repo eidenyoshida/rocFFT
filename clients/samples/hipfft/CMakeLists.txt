@@ -23,7 +23,10 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
 find_package(hip)
-find_package(rocfft)
+
+if( NOT TARGET rocfft )
+  find_package(rocfft)
+endif( )
 
 set( sample_list hipfft_1d_z2z hipfft_1d_d2z hipfft_2d_z2z hipfft_2d_d2z hipfft_3d_z2z
   hipfft_3d_d2z hipfft_planmany_2d_z2z hipfft_planmany_2d_r2c hipfft_setworkarea)
@@ -52,7 +55,7 @@ foreach( sample ${sample_list} )
     target_compile_definitions( ${sample} PRIVATE __HIP_PLATFORM_NVCC__ )
     target_link_libraries( ${sample} PRIVATE ${CUDA_LIBRARIES} )
   else( )
-    target_link_libraries( ${sample} PRIVATE hip::hip_hcc )
+    target_link_libraries( ${sample} PRIVATE hip::device )
   endif( )
 
 if(CMAKE_CXX_COMPILER MATCHES ".*/hcc$")

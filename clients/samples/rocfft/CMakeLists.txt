@@ -23,7 +23,10 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
 find_package(hip)
-find_package(rocfft)
+
+if( NOT TARGET rocfft )
+  find_package(rocfft)
+endif( )
 
 find_package( Boost COMPONENTS program_options REQUIRED)
 set( Boost_DEBUG ON )
@@ -67,7 +70,7 @@ target_link_libraries(
     target_compile_definitions( ${sample} PRIVATE __HIP_PLATFORM_NVCC__ )
     target_link_libraries( ${sample} PRIVATE ${CUDA_LIBRARIES} )
   else( )
-    target_link_libraries( ${sample} PRIVATE hip::hip_hcc )
+    target_link_libraries( ${sample} PRIVATE hip::device )
   endif( )
 
 if(CMAKE_CXX_COMPILER MATCHES ".*/hcc$")

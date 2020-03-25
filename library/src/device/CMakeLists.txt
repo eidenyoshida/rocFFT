@@ -71,8 +71,9 @@ add_custom_command(
 set( rocfft_device_source
   transpose.cpp
   bluestein.cpp
-  real2complex.cpp
-  complex2real.cpp
+  real2complex_embed.cpp
+  complex2real_embed.cpp
+  realcomplex_even.cpp
 )
 
 prepend_path( "../.." rocfft_headers_public relative_rocfft_device_headers_public )
@@ -101,10 +102,10 @@ if( CMAKE_CXX_COMPILER MATCHES ".*/hcc$" OR HIP_PLATFORM STREQUAL "hip-clang")
 endif()
 
 # Remove this check when we no longer build with older rocm stack(ie < 1.8.2)
-if(TARGET hip::device)
+if(CMAKE_CXX_COMPILER MATCHES ".*/hipcc$")
 target_link_libraries( rocfft-device PRIVATE hip::device )
 else()
-target_link_libraries( rocfft-device PRIVATE hip::hip_hcc hip::hip_device hcc::hccshared )
+target_link_libraries( rocfft-device PRIVATE hip::device  hcc::hccshared )
 endif()
 
 if(HIP_PLATFORM STREQUAL "nvcc")
