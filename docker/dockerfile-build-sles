@@ -32,13 +32,13 @@ RUN zypper refresh && zypper -n install\
 
 #Compile FFTW
 RUN cd ~/ && \
-    wget http://fftw.org/fftw-3.3.8.tar.gz && \
+    wget -nv http://fftw.org/fftw-3.3.8.tar.gz && \
     ls && \
     tar -xvf fftw-3.3.8.tar.gz && \
     cd fftw-3.3.8/ && \
-    ./configure --prefix=/fftw --enable-openmp --enable-shared --enable-avx2 --enable-float && make -j && make install && \
+    ./configure --prefix=/fftw --enable-openmp --enable-shared --enable-avx2 --enable-openmp --enable-float && make -j && make install && \
     make clean && \
-    ./configure --prefix=/fftw --enable-openmp --enable-shared --enable-avx2 && make -j && make install && \
+    ./configure --prefix=/fftw --enable-openmp --enable-shared --enable-avx2 --enable-openmp && make -j && make install && \
     cd .. && \
     rm -rf fftw-*
 
