@@ -57,6 +57,11 @@ find_package( GTest REQUIRED )
 set( FFTW_COMPONENTS "" )
 LIST(APPEND FFTW_COMPONENTS FLOAT DOUBLE)
 
+message("**************")
+message("**************")
+message("**************")
+message("**************")
+
 if ( USE_FFTW_OPENMP )
   message("Looking for OpenMP and FFTW OpenMP")
   message (STATUS "OS detected is ${OS_ID}")
@@ -72,10 +77,14 @@ if ( USE_FFTW_OPENMP )
     set( OPENMP_FOUND 1)
   else( )
     #UBUNTU
-    find_package(OpenMP)
+    set( OpenMP_CXX_FLAGS "-fopenmp" )
+    set( OPENMP_INCLUDE_DIR /opt/rocm/llvm/lib/clang/11.0.0/include/ )
+    set( OPENMP_FOUND 1)
+    # find_package(OpenMP REQUIRED)
   endif( )
   
   if(OPENMP_FOUND)
+    
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     message("OPENMP_INCLUDE_DIR " ${OPENMP_INCLUDE_DIR})
     add_definitions(-DUSE_FFTW_OPENMP)
@@ -84,8 +93,11 @@ if ( USE_FFTW_OPENMP )
   else( )
     message("OpenMP not found, continuing compile without OpenMP")
   endif( )
+  
 endif( )
-
+message("**************")
+  message("**************")
+  message("**************")
 find_package( FFTW 3.0 REQUIRED MODULE COMPONENTS ${FFTW_COMPONENTS} )
 
 set(rocfft_test_source
