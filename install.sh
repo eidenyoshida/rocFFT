@@ -400,7 +400,10 @@ if [[ "${build_clients}" == true ]]; then
     cmake_client_options="${cmake_client_options} -DBUILD_CLIENTS_SAMPLES=ON -DBUILD_CLIENTS_TESTS=ON -DBUILD_CLIENTS_BENCHMARKS=ON -DBUILD_CLIENTS_SELFTEST=ON -DBUILD_CLIENTS_RIDER=ON"
 fi
 
-compiler="hipcc"
+compiler="hcc"
+if [[ "${build_hip_clang}" == true ]]; then
+    compiler="hipcc"
+fi
 
 if [[ "${build_hip_clang}" == true ]]; then
     cmake_common_options="${cmake_common_options} -DUSE_HIP_CLANG=ON -DHIP_COMPILER=clang"
